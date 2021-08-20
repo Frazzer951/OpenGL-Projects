@@ -68,7 +68,7 @@ static ShaderProgramSource ParseShader( const std::string & filepath )
 
 static unsigned int CompileShader( unsigned int type, const std::string & source )
 {
-  unsigned int id  = glCreateShader( type );
+  GLCall( unsigned int id = glCreateShader( type ) );
   const char * src = source.c_str();
   GLCall( glShaderSource( id, 1, &src, nullptr ) );
   GLCall( glCompileShader( id ) );
@@ -92,9 +92,9 @@ static unsigned int CompileShader( unsigned int type, const std::string & source
 
 static unsigned int CreateShader( const std::string & vertexShader, const std::string & fragmentShader )
 {
-  unsigned int program = glCreateProgram();
-  unsigned int vs      = CompileShader( GL_VERTEX_SHADER, vertexShader );
-  unsigned int fs      = CompileShader( GL_FRAGMENT_SHADER, fragmentShader );
+  GLCall( unsigned int program = glCreateProgram() );
+  unsigned int vs = CompileShader( GL_VERTEX_SHADER, vertexShader );
+  unsigned int fs = CompileShader( GL_FRAGMENT_SHADER, fragmentShader );
 
   GLCall( glAttachShader( program, vs ) );
   GLCall( glAttachShader( program, fs ) );
@@ -163,7 +163,7 @@ int main( void )
     /* Render here */
     GLCall( glClear( GL_COLOR_BUFFER_BIT ) );
 
-    GLCall( glDrawElements( GL_TRIANGLES, 6, GL_INT, nullptr ) );
+    GLCall( glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr ) );
 
     /* Swap front and back buffers */
     glfwSwapBuffers( window );
@@ -172,7 +172,7 @@ int main( void )
     glfwPollEvents();
   }
 
-  glDeleteProgram( shader );
+  GLCall( glDeleteProgram( shader ) );
 
   glfwTerminate();
   return 0;
