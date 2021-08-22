@@ -172,6 +172,7 @@
     <ClCompile Include="src\VertexBuffer.cpp" />
     <ClCompile Include="src\VertexArray.cpp" />
     <ClCompile Include="src\Texture.cpp" />
+    <ClCompile Include="src\tests\TestQuadRender.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="res\shaders\Basic.shader" />
@@ -614,6 +615,7 @@
     <ClInclude Include="src\VertexArray.h" />
     <ClInclude Include="src\VertexBufferLayout.h" />
     <ClInclude Include="src\Texture.h" />
+    <ClInclude Include="src\tests\TestQuadRender.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\textures\ChernoLogo.png" />

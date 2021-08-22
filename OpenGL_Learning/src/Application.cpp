@@ -20,6 +20,9 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
+#include "tests/TestClearColor.h"
+#include "tests/TestQuadRender.h"
+
 int main( void )
 {
   GLFWwindow * window;
@@ -47,51 +50,10 @@ int main( void )
   if( glewInit() != GLEW_OK ) std::cout << "Error!" << std::endl;
 
   std::cout << glGetString( GL_VERSION ) << std::endl;
+
   {
-    float positions[] = {
-      -50.0f, -50.0f, +0.0f, +0.0f,    // 0
-      +50.0f, -50.0f, +1.0f, +0.0f,    // 1
-      +50.0f, +50.0f, +1.0f, +1.0f,    // 2
-      -50.0f, +50.0f, +0.0f, +1.0f     // 3
-    };
-
-    unsigned int indices[] = {
-      0, 1, 2,
-      2, 3, 0
-    };
-
     GLCall( glEnable( GL_BLEND ) );
     GLCall( glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA ) );
-
-    unsigned int vao;
-    GLCall( glGenVertexArrays( 1, &vao ) );
-    GLCall( glBindVertexArray( vao ) );
-
-    VertexArray  va;
-    VertexBuffer vb( positions, 4 * 4 * sizeof( float ) );
-
-    VertexBufferLayout layout;
-    layout.Push<float>( 2 );
-    layout.Push<float>( 2 );
-    va.AddBuffer( vb, layout );
-
-    IndexBuffer ib( indices, 6 );
-
-    glm::mat4 proj = glm::ortho( 0.0f, 960.0f, 0.0f, 540.0f, -1.0f, 1.0f );
-    glm::mat4 view = glm::translate( glm::mat4( 1.0f ), glm::vec3( 0, 0, 0 ) );
-
-    Shader shader( "res/shaders/Basic.shader" );
-    shader.Bind();
-    shader.SetUniform4f( "u_Color", 0.8f, 0.3f, 0.8f, 1.0f );
-
-    Texture texture( "res/textures/ChernoLogo.png" );
-    texture.Bind();
-    shader.SetUniform1i( "u_Texture", 0 );
-
-    va.Bind();
-    vb.Unbind();
-    ib.Unbind();
-    shader.Unbind();
 
     Renderer renderer;
 
@@ -103,63 +65,25 @@ int main( void )
     ImGui_ImplGlfw_InitForOpenGL( window, true );
     ImGui_ImplOpenGL3_Init( (char *) glGetString( GL_NUM_SHADING_LANGUAGE_VERSIONS ) );
 
-    glm::vec3 translationA( 200, 200, 0 );
-    glm::vec3 translationB( 400, 200, 0 );
+    //test::TestClearColor test;
+    test::TestQuadRender test;
 
-    float r         = 0.0f;
-    float increment = 0.05f;
-    /* Loop until the user closes the window */
     while( !glfwWindowShouldClose( window ) )
     {
-      /* Render here */
       renderer.Clear();
 
-      /* ImGUI New Frame */
+      test.OnUpdate( 0.0f );
+      test.OnRender();
+
       ImGui_ImplOpenGL3_NewFrame();
       ImGui_ImplGlfw_NewFrame();
       ImGui::NewFrame();
 
-      shader.Bind();
+      test.OnImGuiRender();
 
-      {
-        glm::mat4 model = glm::translate( glm::mat4( 1.0f ), translationA );
-        glm::mat4 mvp   = proj * view * model;
-        shader.SetUniformMat4f( "u_MVP", mvp );
-
-        renderer.Draw( va, ib, shader );
-      }
-
-      {
-        glm::mat4 model = glm::translate( glm::mat4( 1.0f ), translationB );
-        glm::mat4 mvp   = proj * view * model;
-        shader.SetUniformMat4f( "u_MVP", mvp );
-
-        renderer.Draw( va, ib, shader );
-      }
-
-      if( r > 1.0f )
-        increment = -0.05f;
-      else if( r < 0.0f )
-        increment = 0.05f;
-
-      r += increment;
-
-      {
-        static float f = 0.0f;
-
-        ImGui::SliderFloat3( "Translation A", &translationA.x, 0.0f, 960.0f );
-        ImGui::SliderFloat3( "Translation B", &translationB.x, 0.0f, 960.0f );
-        ImGui::Text( "Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate );
-      }
-
-      /* Render */
       ImGui::Render();
       ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );
-
-      /* Swap front and back buffers */
       glfwSwapBuffers( window );
-
-      /* Poll for and process events */
       glfwPollEvents();
     }
   }
