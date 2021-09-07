@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.11.0)
+project(OpenGL_Learning VERSION 1.0.0)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+include(ClangFormat)
+
+include_directories(src)
+include_directories(../vendor)
+
+file(GLOB_RECURSE src_files
+     src/*.cpp
+     src/*.h
+     ../vendor/*.cpp
+     ../vendor/*.h
+)
+
+file(COPY
+  res/
+  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res
+)
+
+add_executable(${PROJECT_NAME} ${src_files} )
+target_link_libraries(${PROJECT_NAME} glfw libglew_static glm)
+
+target_clangformat_setup(${PROJECT_NAME})

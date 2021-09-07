@@ -1,0 +1,34 @@
+cmake_minimum_required(VERSION 3.11.0)
+project(RayMarch VERSION 1.0.0)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+include(ClangFormat)
+
+include_directories(../vendor)
+
+file(GLOB_RECURSE src_files
+     *.cpp
+     *.h
+     ../vendor/*.cpp
+     ../vendor/*.h
+)
+
+# file(COPY
+#   shaders/
+#   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/shaders
+# )
+
+add_executable(${PROJECT_NAME} ${src_files} )
+target_link_libraries(${PROJECT_NAME} glfw libglew_static glm)
+
+add_custom_command(
+        TARGET ${PROJECT_NAME} PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${CMAKE_SOURCE_DIR}/Raymarch/shaders
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
+)
+
+target_clangformat_setup(${PROJECT_NAME})
