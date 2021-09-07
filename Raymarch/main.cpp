@@ -18,7 +18,8 @@ int main( void )
   GLFWwindow * window;
 
   /* Initialize the library */
-  if( !glfwInit() ) return -1;
+  if( !glfwInit() )
+    return -1;
 
   glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 3 );
   glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );
@@ -37,21 +38,26 @@ int main( void )
 
   glfwSwapInterval( 1 );
 
-  if( glewInit() != GLEW_OK ) std::cout << "Error!" << std::endl;
+  if( glewInit() != GLEW_OK )
+    std::cout << "Error!" << std::endl;
 
   std::cout << glGetString( GL_VERSION ) << std::endl;
 
-  float positions[8] {
-    -0.5f, -0.5f,    // 0
-    +0.5f, -0.5f,    // 1
-    +0.5f, +0.5f,    // 2
-    -0.5f, +0.5f     // 3
+  float positions[] = {
+    -1.0f, -1.0f,    // 0
+    +1.0f, -1.0f,    // 1
+    +1.0f, +1.0f,    // 2
+    -1.0f, +1.0f     // 3
   };
 
-  unsigned int indices[] {
+  unsigned int indices[] = {
     0, 1, 2,
     2, 3, 0
   };
+
+  unsigned int vao;
+  GLCall( glGenVertexArrays( 1, &vao ) );
+  GLCall( glBindVertexArray( vao ) );
 
   unsigned int buffer;
   GLCall( glGenBuffers( 1, &buffer ) );
@@ -64,17 +70,20 @@ int main( void )
   unsigned int ibo;
   GLCall( glGenBuffers( 1, &ibo ) );
   GLCall( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
-  GLCall( glBufferData( GL_ELEMENT_ARRAY_BUFFER, 2 * 3 * sizeof( unsigned int ), indices, GL_STATIC_DRAW ) );
+  GLCall( glBufferData( GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof( unsigned int ), indices, GL_STATIC_DRAW ) );
 
+  //Shader shader( "shaders/vert.glsl", "shaders/fire_ball_frag.glsl" );
+  Shader shader( "shaders/vert.glsl", "shaders/frag.glsl" );
+
+  GLCall( glBindVertexArray( 0 ) );
+  GLCall( glUseProgram( 0 ) );
   GLCall( glBindBuffer( GL_ARRAY_BUFFER, 0 ) );
+  GLCall( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, 0 ) );
 
   // Ensure we can capture the escape key being pressed below
   glfwSetInputMode( window, GLFW_STICKY_KEYS, GL_TRUE );
   glfwSetCursorPos( window, WIDTH / 2, HEIGHT / 2 );
   GLEW_ARB_debug_output;
-
-  //Shader shader( "shaders/vert.glsl", "shaders/fire_ball_frag.glsl" );
-  Shader shader( "shaders/vert.glsl", "shaders/frag.glsl" );
 
   vec3    iResolution = vec3( WIDTH, HEIGHT, 0 );
   clock_t start_time  = clock();
@@ -91,6 +100,9 @@ int main( void )
     shader.Bind();
     shader.SetUniformVec3f( "iResolution", iResolution );
     shader.SetUniform1f( "iTime", playtime_in_second );
+
+    GLCall( glBindVertexArray( vao ) );
+    GLCall( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
 
     GLCall( glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr ) );
 
