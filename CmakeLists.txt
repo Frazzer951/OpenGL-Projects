@@ -20,6 +20,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(ClangFormat)
 include(FetchContent)
 
+include(glad)
 include(glew)
 include(glfw)
 include(glm)

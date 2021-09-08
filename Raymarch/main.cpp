@@ -4,8 +4,8 @@
 #include "Shader.h"
 #include "macro.h"
 
-#include "GL/glew.h"
 #include "GLFW/glfw3.h"
+#include "glad/glad.h"
 #include "glm/glm.hpp"
 
 #define WIDTH  800
@@ -38,7 +38,7 @@ int main( void )
 
   glfwSwapInterval( 1 );
 
-  if( glewInit() != GLEW_OK )
+  if( !gladLoadGLLoader( (GLADloadproc) glfwGetProcAddress ) )
     std::cout << "Error!" << std::endl;
 
   std::cout << glGetString( GL_VERSION ) << std::endl;
@@ -72,7 +72,8 @@ int main( void )
     GLCall( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
     GLCall( glBufferData( GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof( unsigned int ), indices, GL_STATIC_DRAW ) );
 
-    Shader shader( "shaders/vert.glsl", "shaders/unreal_intro_frag.glsl" );
+    Shader shader( "shaders/vert.glsl", "shaders/raymarch.glsl" );
+    //Shader shader( "shaders/vert.glsl", "shaders/unreal_intro_frag.glsl" );
     //Shader shader( "shaders/vert.glsl", "shaders/fire_ball_frag.glsl" );
     //Shader shader( "shaders/vert.glsl", "shaders/frag.glsl" );
 
@@ -84,7 +85,6 @@ int main( void )
     // Ensure we can capture the escape key being pressed below
     glfwSetInputMode( window, GLFW_STICKY_KEYS, GL_TRUE );
     glfwSetCursorPos( window, WIDTH / 2, HEIGHT / 2 );
-    GLEW_ARB_debug_output;
 
     vec3    iResolution = vec3( WIDTH, HEIGHT, 0 );
     clock_t start_time  = clock();
