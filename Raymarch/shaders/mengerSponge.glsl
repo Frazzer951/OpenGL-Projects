@@ -11,53 +11,8 @@ const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
 const float EPSILON = 0.0001;
 
-mat3 rotateX(float theta){
- float c = cos(theta);
- float s = sin(theta);
-
- return mat3(
-  vec3(1, 0,  0),
-  vec3(0, c, -s),
-  vec3(0, s,  c)
- );
-}
-
-mat3 rotateY(float theta){
- float c = cos(theta);
- float s = sin(theta);
-
- return mat3(
-  vec3( c, 0, s),
-  vec3( 0, 1, 0),
-  vec3(-s, 0, c)
- );
-}
-
-mat3 rotateZ(float theta){
- float c = cos(theta);
- float s = sin(theta);
-
- return mat3(
-  vec3(c, -s, 0),
-  vec3(s,  c, 0),
-  vec3(0,  0, 1)
- );
-}
-
-vec3 opRep( vec3 p, vec3 c){
-  return mod(p , c);
-}
-
-float intersectSDF(float distA, float distB) {
-  return max(distA, distB);
-}
-
-float unionSDF(float distA, float distB) {
-  return min(distA, distB);
-}
-
-float differenceSDF(float distA, float distB) {
-  return max(distA, -distB);
+float maxcomp(in vec2 p ) {
+  return max(p.x, p.y);
 }
 
 float boxSDF(vec3 p, vec3 size) {
@@ -69,46 +24,47 @@ float boxSDF(vec3 p, vec3 size) {
 
 float boxSDF( in vec2 p, in vec2 b )
 {
-    vec2 d = abs(p)-b;
-    return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
+  vec2 d = abs(p) - b;
+  return length(max(d, 0.0)) + min(max(d.x ,d.y), 0.0);
 }
 
-float sphereSDF(vec3 p, float r) {
-  return length(p) - r;
+float map(vec3 p){
+  float d = boxSDF(p, vec3(1.0));
+  vec3 res = vec3( d, 1.0, 0.0 );
+
+  float s = 1.0;
+  for(int m = 0; m < 3; m++){
+    vec3 a = mod(p * s, 2.0) - 1.0;
+    s *= 3.0;
+    vec3 r = abs(1.0 - 3.0 * abs(a));
+
+    float da = maxcomp(abs(p.xy));
+    float db = maxcomp(abs(p.yz));
+    float dc = maxcomp(abs(p.zx));
+    float c = (min(da, min(db ,dc)) - 1.0) / s;
+
+    if(c > d){
+      d = c;
+      res = vec3( d, 0.2*da*db*dc, (1.0 + float(m)) / 4.0);
+    }
+  }
+
+  return d;
 }
 
-float cylinderSDF(vec3 p, float h, float r){
-  float inOutRadius = length(p.xy) -r;
-  float inOutHeight = abs(p.z) - h/2.0;
-  float insideDistance = min(max(inOutRadius, inOutHeight), 0.0);
-  float outsideDistance = length(max(vec2(inOutRadius, inOutHeight), 0.0));
-  return insideDistance + outsideDistance;
+/*
+vec3 intersect(vec3 ro, vec3 rd){
+  for(float t = 0.0; t < 10.0;){
+    vec3 h = map(ro + rd * t);
+    if( h.x < 0.001 )
+      return vec3(t, h.yz);
+    t += h;
+  }
+  return vec3(-1.0);
 }
-
+*/
 float sceneSDF(vec3 samplePoint) {
-  samplePoint = rotateY(iTime / 2.0) * samplePoint;
-
-  float cylinderRadius = 0.4 + (1.0 - 0.4) * (1.0 + sin(1.7 * iTime)) / 2.0;
-  float cylinder1 = cylinderSDF(samplePoint, 2.0, cylinderRadius);
-  float cylinder2 = cylinderSDF(rotateX(radians(90.0)) * samplePoint, 2.0, cylinderRadius);
-  float cylinder3 = cylinderSDF(rotateY(radians(90.0)) * samplePoint, 2.0, cylinderRadius);
-
-  float cube = boxSDF(samplePoint, vec3(1.8, 1.8, 1.8));
-
-  float sphere = sphereSDF(samplePoint, 1.2);
-
-  float ballOffset = 0.4 + 1.0 + sin(1.7 * iTime);
-  float ballRadius = 0.3;
-  float balls = sphereSDF(samplePoint - vec3(ballOffset, 0.0, 0.0), ballRadius);
-  balls = unionSDF(balls, sphereSDF(samplePoint + vec3(ballOffset, 0.0, 0.0), ballRadius));
-  balls = unionSDF(balls, sphereSDF(samplePoint - vec3(0.0, ballOffset, 0.0), ballRadius));
-  balls = unionSDF(balls, sphereSDF(samplePoint + vec3(0.0, ballOffset, 0.0), ballRadius));
-  balls = unionSDF(balls, sphereSDF(samplePoint - vec3(0.0, 0.0, ballOffset), ballRadius));
-  balls = unionSDF(balls, sphereSDF(samplePoint + vec3(0.0, 0.0, ballOffset), ballRadius));
-
-  float csgNut = differenceSDF(intersectSDF(cube, sphere), unionSDF(cylinder1, unionSDF(cylinder2, cylinder3)));
-
-  return unionSDF(balls, csgNut);
+  return map(samplePoint);
 }
 
 float shortestDistanceToSurface(vec3 eye, vec3 marchingDirection, float start, float end) {
