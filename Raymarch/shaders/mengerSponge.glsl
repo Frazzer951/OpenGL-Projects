@@ -11,60 +11,95 @@ const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
 const float EPSILON = 0.0001;
 
-float maxcomp(in vec2 p ) {
+mat3 rotateX(float theta){
+ float c = cos(theta);
+ float s = sin(theta);
+
+ return mat3(
+  vec3(1, 0,  0),
+  vec3(0, c, -s),
+  vec3(0, s,  c)
+ );
+}
+
+mat3 rotateY(float theta){
+ float c = cos(theta);
+ float s = sin(theta);
+
+ return mat3(
+  vec3( c, 0, s),
+  vec3( 0, 1, 0),
+  vec3(-s, 0, c)
+ );
+}
+
+mat3 rotateZ(float theta){
+ float c = cos(theta);
+ float s = sin(theta);
+
+ return mat3(
+  vec3(c, -s, 0),
+  vec3(s,  c, 0),
+  vec3(0,  0, 1)
+ );
+}
+
+float maxcomp( vec2 p ) {
   return max(p.x, p.y);
 }
 
-float boxSDF(vec3 p, vec3 size) {
-  vec3 d = abs(p) - (size / 2.0);
-  float insideDistance = min(max(d.x, max(d.y, d.z)), 0.0);
-  float outsideDistance = length(max(d, 0.0));
-  return insideDistance + outsideDistance;
+float maxcomp( vec3 p ) {
+  return max(p.x, max(p.y, p.z));
 }
 
-float boxSDF( in vec2 p, in vec2 b )
-{
+float intersectSDF(float distA, float distB) {
+  return max(distA, distB);
+}
+
+float unionSDF(float distA, float distB) {
+  return min(distA, distB);
+}
+
+float differenceSDF(float distA, float distB) {
+  return max(distA, -distB);
+}
+
+float sdBox(vec3 p, vec3 b) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(maxcomp(q), 0.0);
+}
+
+float sdBox(vec2 p, vec2 b ){
   vec2 d = abs(p) - b;
   return length(max(d, 0.0)) + min(max(d.x ,d.y), 0.0);
 }
 
-float map(vec3 p){
-  float d = boxSDF(p, vec3(1.0));
-  vec3 res = vec3( d, 1.0, 0.0 );
+float sdCross(vec3 p){
+  float da = sdBox(p.xy, vec2(1.0));
+  float db = sdBox(p.yz, vec2(1.0));
+  float dc = sdBox(p.zx, vec2(1.0));
+  return min(da, min(db, dc));
+}
+
+float sceneSDF(vec3 p) {
+  float d = sdBox(p, vec3(1.0));
 
   float s = 1.0;
-  for(int m = 0; m < 3; m++){
-    vec3 a = mod(p * s, 2.0) - 1.0;
-    s *= 3.0;
+  for(int m = 0; m < 4; m++){
+    vec3 a = mod( p * s, 2.0) - 1.0;
+    s *= 3;
     vec3 r = abs(1.0 - 3.0 * abs(a));
 
-    float da = maxcomp(abs(p.xy));
-    float db = maxcomp(abs(p.yz));
-    float dc = maxcomp(abs(p.zx));
-    float c = (min(da, min(db ,dc)) - 1.0) / s;
+    float da = max(r.x,r.y);
+    float db = max(r.y,r.z);
+    float dc = max(r.z,r.x);
+    float c = (min(da, min(db, dc)) - 1.0) / s;
 
-    if(c > d){
-      d = c;
-      res = vec3( d, 0.2*da*db*dc, (1.0 + float(m)) / 4.0);
-    }
+    d = max(d,c);
+
+    //p *= rotateX(15.0);
   }
-
   return d;
-}
-
-/*
-vec3 intersect(vec3 ro, vec3 rd){
-  for(float t = 0.0; t < 10.0;){
-    vec3 h = map(ro + rd * t);
-    if( h.x < 0.001 )
-      return vec3(t, h.yz);
-    t += h;
-  }
-  return vec3(-1.0);
-}
-*/
-float sceneSDF(vec3 samplePoint) {
-  return map(samplePoint);
 }
 
 float shortestDistanceToSurface(vec3 eye, vec3 marchingDirection, float start, float end) {
@@ -76,7 +111,7 @@ float shortestDistanceToSurface(vec3 eye, vec3 marchingDirection, float start, f
     }
     depth += dist;
     if (depth >= end) {
-      return end;
+      break;
     }
   }
   return end;
@@ -88,58 +123,42 @@ vec3 rayDirection(float fieldOfView, vec2 size, vec2 fragCoord) {
   return normalize(vec3(xy, -z));
 }
 
-vec3 estimateNormal(vec3 p) {
-  return normalize(vec3(
-    sceneSDF(vec3(p.x + EPSILON, p.y, p.z)) - sceneSDF(vec3(p.x - EPSILON, p.y, p.z)),
-    sceneSDF(vec3(p.x, p.y + EPSILON, p.z)) - sceneSDF(vec3(p.x, p.y - EPSILON, p.z)),
-    sceneSDF(vec3(p.x, p.y, p.z  + EPSILON)) - sceneSDF(vec3(p.x, p.y, p.z - EPSILON))
-  ));
+vec3 calcNormal(vec3 p) {
+  vec3 small = vec3(EPSILON, 0.0, 0.0);
+
+  float x = sceneSDF(vec3(p + small.xyy)) - sceneSDF(vec3(p - small.xyy));
+  float y = sceneSDF(vec3(p + small.yxy)) - sceneSDF(vec3(p - small.yxy));
+  float z = sceneSDF(vec3(p + small.yyx)) - sceneSDF(vec3(p - small.yyx));
+
+  return normalize(vec3(x, y, z));
 }
 
-vec3 phongContribForLight(vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye, vec3 lightPos, vec3 lightIntensity) {
-  vec3 N = estimateNormal(p);
-  vec3 L = normalize(lightPos - p);
-  vec3 V = normalize(eye - p);
-  vec3 R = normalize(reflect(-L, N));
+float calcSoftshadow( vec3 pos, vec3 dir, float start, float end, float k ){
+  float res = 1.0;
+  float ph = 1e20;
 
-  float dotLN = dot(L, N);
-  float dotRV = dot(R, V);
-
-  if (dotLN < 0.0) {
-    // Light not visible from this point on the surface
-    return vec3(0.0, 0.0, 0.0);
+  for( float depth = start; depth<end; ){
+    float dist = sceneSDF(pos + dir * depth);
+    if( dist < EPSILON ) return 0.0;
+    float y = dist * dist / (2.0 * ph);
+    float d = sqrt(dist * dist - y * y);
+    res = min( res, k * d / max(0.0, depth - y) );
+    ph = dist;
+    depth += dist;
   }
-
-  if (dotRV < 0.0) {
-    // Light reflection in opposite direction as viewer, apply only diffuse
-    // component
-    return lightIntensity * (k_d * dotLN);
-  }
-  return lightIntensity * (k_d * dotLN + k_s * pow(dotRV, alpha));
+  return res;
 }
 
-vec3 phongIllumination(vec3 k_a, vec3 k_d, vec3 k_s, float alpha, vec3 p, vec3 eye) {
-  const vec3 ambientLight = 0.5 * vec3(1.0, 1.0, 1.0);
-  vec3 color = ambientLight * k_a;
-
-  vec3 light1Pos = vec3(4.0 * sin(iTime),
-                        2.0,
-                        4.0 * cos(iTime));
-  vec3 light1Intensity = vec3(0.4, 0.4, 0.4);
-
-  color += phongContribForLight(k_d, k_s, alpha, p, eye,
-                                light1Pos,
-                                light1Intensity);
-
-  vec3 light2Pos = vec3(2.0 * sin(0.37 * iTime),
-                        2.0 * cos(0.37 * iTime),
-                        2.0);
-  vec3 light2Intensity = vec3(0.4, 0.4, 0.4);
-
-  color += phongContribForLight(k_d, k_s, alpha, p, eye,
-                                light2Pos,
-                                light2Intensity);
-  return color;
+float calcAO( vec3 pos, vec3 nor){
+  float occ = 0.0;
+  float sca = 1.0;
+  for(int i = 0; i < 5; i++ ){
+    float h = 0.001 + 0.15 * float(i) / 4.0;
+    float d = sceneSDF( pos + h * nor);
+    occ += (h - d) * sca;
+    sca *= 0.95;
+  }
+  return clamp( 1.0 - 1.5 * occ, 0.0, 1.0);
 }
 
 mat3 viewMatrix(vec3 eye, vec3 center, vec3 up){
@@ -151,33 +170,46 @@ mat3 viewMatrix(vec3 eye, vec3 center, vec3 up){
 
 void main()
 {
-  //vec3 dir = rayDirection(45.0, iResolution.xy, fragCoord);
   vec3 viewDir = rayDirection(45.0, iResolution.xy, gl_FragCoord.xy);
-  // vec3 eye = vec3(1.0, 1.0, 7.0);
-  vec3 eye = vec3(8.0, 5.0 * sin(0.2 * iTime), 7.0);
+  vec3 eye = vec3(8.0, 5.0, 7.0);
 
   mat3 viewToWorld = viewMatrix(eye, vec3(0.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0));
 
-  //vec3 worldDir = viewDir;
   vec3 worldDir = viewToWorld * viewDir;
 
+  vec3 color = vec3(0.0);
   float dist = shortestDistanceToSurface(eye, worldDir, MIN_DIST, MAX_DIST);
 
-  if (dist > MAX_DIST - EPSILON) {
-    // Didn't hit anything
-    fragColor = vec4(0.0, 0.0, 0.0, 0.0);
-    return;
+  if(dist > -0.5){
+
+    vec3 pos = eye + dist * worldDir;
+    vec3 nor = calcNormal(pos);
+
+    // material
+    vec3 mat = vec3(0.4, 0.8, 0.8);
+
+    // key light
+    vec3 lig = normalize( vec3(-0.1, 0.3, 0.6) );
+    vec3 hal = normalize( lig - worldDir );
+    float dif = clamp( dot( nor, lig ), 0.0, 1.0 ) * calcSoftshadow(pos, lig, 0.01, 3.0, 2);
+
+    float spe = pow( clamp( dot( nor, hal ), 0.0, 1.0 ), 16.0 ) *
+                dif *
+                (0.04 + 0.96 * pow( clamp( 1.0 + dot( hal, worldDir ), 0.0, 1.0), 5.0 ));
+
+    color = mat * 4.0 * dif * vec3(1.0, 0.7, 0.5);
+    color +=     12.0 * spe * vec3(1.0, 0.7, 0.5);
+
+    // Ambient Light
+    float occ = calcAO( pos, nor );
+    float amb = clamp(0.5 + 0.5 * nor.y, 0.0, 1.0);
+    color += mat * amb * occ * vec3(0.0, 0.08, 0.1);
+
+    // fog
+    color *= exp( -0.0005 * dist * dist * dist );
   }
 
-  // The closest point on the surface to the eyepoint along the view ray
-  vec3 p = eye + dist * worldDir;
-
-  vec3 K_a = (estimateNormal(p) + vec3(1.0)) / 2.0;
-  vec3 K_d = K_a;
-  vec3 K_s = vec3(1.0, 1.0, 1.0);
-  float shininess = 10.0;
-
-  vec3 color = phongIllumination(K_a, K_d, K_s, shininess, p, eye);
+  color = pow( color, vec3(0.4545) );
 
   fragColor = vec4(color, 1.0);
 }
