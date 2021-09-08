@@ -72,7 +72,8 @@ int main( void )
     GLCall( glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, ibo ) );
     GLCall( glBufferData( GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof( unsigned int ), indices, GL_STATIC_DRAW ) );
 
-    Shader shader( "shaders/vert.glsl", "shaders/mengerSponge.glsl" );
+    Shader shader( "shaders/vert.glsl", "shaders/sierpinski.glsl" );
+    //Shader shader( "shaders/vert.glsl", "shaders/mengerSponge.glsl" );
     //Shader shader( "shaders/vert.glsl", "shaders/raymarch.glsl" );
     //Shader shader( "shaders/vert.glsl", "shaders/unreal_intro_frag.glsl" );
     //Shader shader( "shaders/vert.glsl", "shaders/fire_ball_frag.glsl" );
